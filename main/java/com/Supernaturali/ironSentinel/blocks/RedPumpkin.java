@@ -72,7 +72,7 @@ public void onBlockAdded(World p_149726_1_, int p_149726_2_, int p_149726_3_, in
             }
 
             EntitySentinel entitysentinel = new EntitySentinel(p_149726_1_);
-            entitysentinel.setPlayerCreated(true);
+            //entitysentinel.setPlayerCreated(true);
             entitysentinel.setLocationAndAngles((double)p_149726_2_ + 0.5D, (double)p_149726_3_ - 1.95D, (double)p_149726_4_ + 0.5D, 0.0F, 0.0F);
             p_149726_1_.spawnEntityInWorld(entitysentinel);
 

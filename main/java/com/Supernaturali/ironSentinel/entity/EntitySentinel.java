@@ -58,20 +58,37 @@ public class EntitySentinel extends EntityTameable
     public EntityPlayer owner;
     private static final String __OBFID = "CL_00001652";
 	public static final double MaxRadius = 10.0D;
+	
 
 
     public EntitySentinel(World p_i1694_1_)
     {
         super(p_i1694_1_);
         this.setSize(1.4F, 2.9F);
-        this.getNavigator().setAvoidsWater(true);    
-        startAI();
+        this.getNavigator().setAvoidsWater(true);
+        switch ((int)getAIMode()){
+        case 0: startAI();
+        		break;
+		case 1: neutralAI();
+		        break;
+		case 2: standGroundAI();
+		        break;
+		case 3: defensiveAI();
+		        break;
+		case 4: noAttackAI();
+				break;
+        }
     }
-
+    
+    /**
+     * seems to be used for registering datawatcher variables
+     */    
     protected void entityInit()
     {
-        super.entityInit();
-        this.dataWatcher.addObject(23, Byte.valueOf((byte)0));
+       super.entityInit();
+       this.dataWatcher.addObject(24, Byte.valueOf((byte)0)); //AI mode
+       this.dataWatcher.addObject(23, Byte.valueOf((byte)0)); //Angry 
+       
     }
 
     /**
@@ -173,22 +190,26 @@ public class EntitySentinel extends EntityTameable
 
     /**
      * (abstract) Protected helper method to write subclass entity data to NBT.
+     * I believe is called when saving chunks.
      */
     public void writeEntityToNBT(NBTTagCompound p_70014_1_)
     {
         super.writeEntityToNBT(p_70014_1_);
-        p_70014_1_.setBoolean("PlayerCreated", this.isPlayerCreated());
+        //p_70014_1_.setBoolean("PlayerCreated", this.isPlayerCreated());//not needed anymore
         p_70014_1_.setBoolean("Angry", this.isAngry());
+        p_70014_1_.setInteger("AIMode", this.getAIMode());
     }
 
     /**
      * (abstract) Protected helper method to read subclass entity data from NBT.
+     * i believe is called when loading chunks. not during gameplay
      */
     public void readEntityFromNBT(NBTTagCompound p_70037_1_)
     {
         super.readEntityFromNBT(p_70037_1_);
-        this.setPlayerCreated(p_70037_1_.getBoolean("PlayerCreated"));
+        //this.setPlayerCreated(p_70037_1_.getBoolean("PlayerCreated"));
         this.setAngry(p_70037_1_.getBoolean("Angry"));
+        this.setAIMode(p_70037_1_.getByte("AIMode"));
 
     }
 
@@ -289,25 +310,6 @@ public class EntitySentinel extends EntityTameable
         return this.holdRoseTick;
     }
 
-    public boolean isPlayerCreated()
-    {
-        return (this.dataWatcher.getWatchableObjectByte(16) & 1) != 0;
-    }
-
-    public void setPlayerCreated(boolean p_70849_1_)
-    {
-        byte b0 = this.dataWatcher.getWatchableObjectByte(16);
-
-        if (p_70849_1_)
-        {
-            this.dataWatcher.updateObject(16, Byte.valueOf((byte)(b0 | 1)));
-        }
-        else
-        {
-            this.dataWatcher.updateObject(16, Byte.valueOf((byte)(b0 & -2)));
-        }
-    }
-
     /**
      * Called when the mob's health reaches 0.
      */
@@ -395,7 +397,7 @@ public class EntitySentinel extends EntityTameable
                        return true;
                    }
                }
-               else if (this.func_152114_e(player) && player.isSneaking()){           	   //itemstack.getItem() == ItemIndex.sentinel_remote && 
+               else if (this.func_152114_e(player) && player.isSneaking()){
             	   GuiSentinel.getInstance(this);
             	   player.openGui(IronSentinel.instance, 20, this.worldObj, 0, 0, 0);
                }
@@ -455,7 +457,7 @@ public class EntitySentinel extends EntityTameable
    //Determines whether this wolf is angry or not.
    public boolean isAngry()
    {
-       return (this.dataWatcher.getWatchableObjectByte(23) & 2) != 0;//datawatcher index 16 represents angry
+       return (this.dataWatcher.getWatchableObjectByte(24) & 2) != 0;//datawatcher index 24 represents angry
    }
 
   /**
@@ -463,18 +465,28 @@ public class EntitySentinel extends EntityTameable
    */
    public void setAngry(boolean p_70916_1_)
    {
-       byte b0 = this.dataWatcher.getWatchableObjectByte(23); //datawatcher index 16 represents angry
+       byte b0 = this.dataWatcher.getWatchableObjectByte(24); //datawatcher index 24 represents angry
 
       if (p_70916_1_)
       {
-          this.dataWatcher.updateObject(23, Byte.valueOf((byte)(b0 | 2)));
+          this.dataWatcher.updateObject(24, Byte.valueOf((byte)(b0 | 2)));
       }
       else
       {
-          this.dataWatcher.updateObject(23, Byte.valueOf((byte)(b0 & -3)));
+          this.dataWatcher.updateObject(24, Byte.valueOf((byte)(b0 & -3)));
       }
    }
+ 
+   public byte getAIMode() //retrieves AI Mode number from server (hopefully)
+    {
+        return this.dataWatcher.getWatchableObjectByte(23);
+    }
 
+   public void setAIMode(byte modeCode) //sets AI mode number to server (hopefully)
+    {
+        this.dataWatcher.updateObject(23, modeCode);   
+    }
+    
    protected void clearAITasks()
    {
       tasks.taskEntries.clear();
@@ -501,17 +513,14 @@ public class EntitySentinel extends EntityTameable
     * the ai that the golem starts with, acts like a normal golem without the village loyalty stuff
     */
    public void startAI(){
-//	   owner.addChatMessage(new ChatComponentTranslation("START AI"));  
-	   System.out.println("START AI");
+	   this.setAIMode((byte)2);
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks
- 
        this.tasks.addTask(1, new EntityAIAttackOnCollide(this, 1.0D, true));
        this.tasks.addTask(2, new EntityAIMoveTowardsTarget(this, 0.9D, 32.0F));
        this.tasks.addTask(3, new EntityAIMoveTowardsRestriction(this, 1.0D));
        this.tasks.addTask(4, new EntityAIWander(this, 0.6D));
        this.tasks.addTask(5, new EntityAIWatchClosest(this, EntityPlayer.class, 6.0F));
-       this.tasks.addTask(6, new EntityAILookIdle(this));
-       
+       this.tasks.addTask(6, new EntityAILookIdle(this));   
        this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, false));
        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityLiving.class, 0, false, true, IMob.mobSelector));
        this.setTamed(false); 
@@ -520,6 +529,7 @@ public class EntitySentinel extends EntityTameable
     *  the ai that gets activated once tamed, gets rid of attacking the nearest mob when sitting.
     */
    public void neutralAI(){
+	   this.setAIMode((byte)1);
 	   this.setTamed(true); 
 	   owner.addChatMessage(new ChatComponentTranslation("AI now set to Neutral"));
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks
@@ -530,8 +540,7 @@ public class EntitySentinel extends EntityTameable
        this.tasks.addTask(5, new EntityAIFollowOwner(this, 1.0D, 10.0F, 2.0F));
        this.tasks.addTask(6, new EntityAIWander(this, 0.6D));
        this.tasks.addTask(7, new EntityAIWatchClosest(this, EntityPlayer.class, 6.0F));
-       this.tasks.addTask(8, new EntityAILookIdle(this));
-       
+       this.tasks.addTask(8, new EntityAILookIdle(this));       
        this.targetTasks.addTask(1, new EntityAIOwnerHurtByTarget(this));
        this.targetTasks.addTask(2, new EntityAIHurtByTarget(this, false));
        this.targetTasks.addTask(2, new EntityAIOwnerHurtTarget(this));
@@ -540,17 +549,15 @@ public class EntitySentinel extends EntityTameable
   
    public void standGroundAI()
    		{
+	   this.setAIMode((byte)2);
 	   owner.addChatMessage(new ChatComponentTranslation("AI now set to StandGround"));
 	   
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks
-//	   this.setTamed(true); 
        this.aiSit.setSitting(true);
 	   this.tasks.addTask(1, new EntityAIAttackFromStanding(this, true));
        this.tasks.addTask(2, this.aiSit);
        this.tasks.addTask(3, new EntityAIWatchClosest(this, EntityPlayer.class, 6.0F));
-       this.tasks.addTask(4, new EntityAILookIdle(this));
-//       this.tasks.addTask(1, new EntityAIAttackOnCollide(this, 1.0D, true));
-       
+       this.tasks.addTask(4, new EntityAILookIdle(this));       
        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityLiving.class, 0, false, true, IMob.mobSelector));
        this.targetTasks.addTask(1, new EntityAIOwnerHurtByTarget(this));
        this.targetTasks.addTask(2, new EntityAIHurtByTarget(this, false));
@@ -559,6 +566,7 @@ public class EntitySentinel extends EntityTameable
    
    public void defensiveAI()
    		{
+	   this.setAIMode((byte)3);
 	   owner.addChatMessage(new ChatComponentTranslation("AI now set to Defensive at: "+ this.posX +" "+ this.posY +" "+ this.posZ));   
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks
 	   this.setGuardPoint(this.posX, this.posY, this.posZ);
@@ -576,6 +584,7 @@ public class EntitySentinel extends EntityTameable
    
    public void noAttackAI()
    		{
+	   this.setAIMode((byte)4);
 	   owner.addChatMessage(new ChatComponentTranslation("AI now set to No Attack"));
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks	   
    		}	
@@ -605,4 +614,6 @@ public class EntitySentinel extends EntityTameable
 				this.guardYPos == this.posX && 
 				this.guardZPos == this.posZ);
 	   	}
+
+   
 }	
