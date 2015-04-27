@@ -2,6 +2,7 @@ package com.Supernaturali.ironSentinel.entity;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityAgeable;
 import net.minecraft.entity.EntityLiving;
@@ -36,6 +37,11 @@ import net.minecraft.util.MathHelper;
 import net.minecraft.village.Village;
 import net.minecraft.world.World;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 import com.Supernaturali.ironSentinel.IronSentinel;
 import com.Supernaturali.ironSentinel.entity.ai.EntityAIAttackFromStanding;
 import com.Supernaturali.ironSentinel.entity.ai.EntityAIAttackWithinRange;
@@ -66,18 +72,31 @@ public class EntitySentinel extends EntityTameable
         super(p_i1694_1_);
         this.setSize(1.4F, 2.9F);
         this.getNavigator().setAvoidsWater(true);
-        switch ((int)getAIMode()){
-        case 0: startAI();
-        		break;
+        
+    }
+    
+    /**
+     * checks the saved datawatcher and according to the int saved changes the mode to that cooresponding AI set
+     */
+    public void changeAIMode() {
+      switch (getAIMode()){
+	    case 0: startAI();
+	      	System.out.println("CHECKED 0");
+	      		break;
 		case 1: neutralAI();
+			System.out.println("CHECKED 1");
 		        break;
 		case 2: standGroundAI();
+			System.out.println("CHECKED 2");
 		        break;
 		case 3: defensiveAI();
+			System.out.println("CHECKED 3");
 		        break;
 		case 4: noAttackAI();
+			System.out.println("CHECKED 4");
 				break;
-        }
+      }
+        
     }
     
     /**
@@ -86,9 +105,13 @@ public class EntitySentinel extends EntityTameable
     protected void entityInit()
     {
        super.entityInit();
+       System.out.println("the entityInit()");
+       System.out.println("Owner: " +  owner);
+       owner = (EntityPlayer) this.getOwner(); //problem with getOwner() is that it requires the owner to be present on the server
+       System.out.println("Owner2: " +  owner);
        this.dataWatcher.addObject(24, Byte.valueOf((byte)0)); //AI mode
        this.dataWatcher.addObject(23, Byte.valueOf((byte)0)); //Angry 
-       
+ 
     }
 
     /**
@@ -155,7 +178,6 @@ public class EntitySentinel extends EntityTameable
     public void onLivingUpdate()
     {
         super.onLivingUpdate();
-
         if (this.attackTimer > 0)
         {
             --this.attackTimer;
@@ -190,27 +212,28 @@ public class EntitySentinel extends EntityTameable
 
     /**
      * (abstract) Protected helper method to write subclass entity data to NBT.
-     * I believe is called when saving chunks.
+     * Called when saving chunks when the game is paused. amd is called once per minute
      */
     public void writeEntityToNBT(NBTTagCompound p_70014_1_)
     {
         super.writeEntityToNBT(p_70014_1_);
-        //p_70014_1_.setBoolean("PlayerCreated", this.isPlayerCreated());//not needed anymore
+        System.out.println("the writeNBT method");
         p_70014_1_.setBoolean("Angry", this.isAngry());
         p_70014_1_.setInteger("AIMode", this.getAIMode());
     }
 
     /**
      * (abstract) Protected helper method to read subclass entity data from NBT.
-     * i believe is called when loading chunks. not during gameplay
+     * Called when loading saved chunks at the start up of a level
      */
     public void readEntityFromNBT(NBTTagCompound p_70037_1_)
     {
         super.readEntityFromNBT(p_70037_1_);
-        //this.setPlayerCreated(p_70037_1_.getBoolean("PlayerCreated"));
+        System.out.println("the read NBT method");
         this.setAngry(p_70037_1_.getBoolean("Angry"));
         this.setAIMode(p_70037_1_.getByte("AIMode"));
-
+        System.out.println(p_70037_1_.getByte("AIMode"));
+        System.out.println(p_70037_1_.getByte("AIMode"));
     }
 
     public boolean attackEntityAsMob(Entity p_70652_1_)
@@ -363,10 +386,10 @@ public class EntitySentinel extends EntityTameable
         }
     }
 
-  /*
-   * Called when a player interacts with a mob. e.g. gets milk from a cow, gets into the saddle on a pig.    (non-Javadoc)
-   * @see net.minecraft.entity.passive.EntityAnimal#interact(net.minecraft.entity.player.EntityPlayer)
-   */
+   /**
+    * Called when a player interacts with a mob. e.g. gets milk from a cow, gets into the saddle on a pig.    (non-Javadoc)
+    * @see net.minecraft.entity.passive.EntityAnimal#interact(net.minecraft.entity.player.EntityPlayer)
+    */
    public boolean interact(EntityPlayer player)
    {
        ItemStack itemstack = player.inventory.getCurrentItem();
@@ -374,6 +397,8 @@ public class EntitySentinel extends EntityTameable
        
        if (this.isTamed())
        {
+    	   owner = (EntityPlayer) this.getOwner();
+    	   System.out.println("Owner3: " +  owner);
            if (itemstack != null)
            {
                if (itemstack.getItem() instanceof ItemFood)
@@ -397,28 +422,34 @@ public class EntitySentinel extends EntityTameable
                        return true;
                    }
                }
-               else if (this.func_152114_e(player) && player.isSneaking()){
-            	   GuiSentinel.getInstance(this);
-            	   player.openGui(IronSentinel.instance, 20, this.worldObj, 0, 0, 0);
-               }
-          }
-      }
+           }
+           
+           if (this.func_152114_e(player) && player.isSneaking())
+              	{
+            		GuiSentinel.getInstance(this);
+            		player.openGui(IronSentinel.instance, 20, this.worldObj, 0, 0, 0);
+              	}      
 
-           if (this.func_152114_e(player) && !this.worldObj.isRemote)//this.func_152114_e(p_70085_1_) checks if it the owner
-           {
+           if (this.func_152114_e(player) && !this.worldObj.isRemote)//this.func_152114_e(p_70085_1_) checks if 'player' is the owner, could potentially also use isOnSameTeam()
+           	{
         	   
         	   this.aiSit.setSitting(!this.isSitting());
                this.isJumping = false;
                this.setPathToEntity((PathEntity)null);
                this.setTarget((Entity)null);
                this.setAttackTarget((EntityLivingBase)null);
-           }
+           	}
+           if (!this.func_152114_e(player))
+      		{
+        	player.addChatMessage(new ChatComponentTranslation("my owner is: " + owner.getDisplayName().toString()));
+      		}
+       }
        
-       else if (itemstack != null && itemstack.getItem() == Items.gold_ingot && !this.isAngry() )//&& this.isTamed()==false)
+       else if (itemstack != null && itemstack.getItem() == Items.gold_ingot && !this.isAngry() && this.isTamed()==false)
        {
            if (!player.capabilities.isCreativeMode)
            {
-               --itemstack.stackSize;
+               --itemstack.stackSize;                                       
            }
 
            if (itemstack.stackSize <= 0)
@@ -430,14 +461,19 @@ public class EntitySentinel extends EntityTameable
            {
                if (this.rand.nextInt(3) == 0)
                {
-            	   this.owner = player;
-            	   neutralAI();
+            	   owner = player; 
                    this.setTamed(true);
+                   this.neutralAI();
                    this.setPathToEntity((PathEntity)null);
                    this.setAttackTarget((EntityLivingBase)null);
                    this.aiSit.setSitting(true);
                    this.setHealth(20.0F);
                    this.func_152115_b(player.getUniqueID().toString());
+                   player.addChatMessage(new ChatComponentTranslation("display entity ID: " + player.getEntityId()));
+                   player.addChatMessage(new ChatComponentTranslation("unique ID: " + player.getUniqueID().toString()));
+                   player.addChatMessage(new ChatComponentTranslation("datawatcher: " + this.func_152113_b()));
+                   player.addChatMessage(new ChatComponentTranslation("get Owner: " +  this.getOwner()));
+                   player.addChatMessage(new ChatComponentTranslation("player: " + player));
                    this.playTameEffect(true);
                    this.worldObj.setEntityState(this, (byte)7);
                }
@@ -454,15 +490,17 @@ public class EntitySentinel extends EntityTameable
        return super.interact(player);
    }
 
-   //Determines whether this wolf is angry or not.
+   /**
+    * Determines whether this sentinel is angry or not.
+    */
    public boolean isAngry()
    {
        return (this.dataWatcher.getWatchableObjectByte(24) & 2) != 0;//datawatcher index 24 represents angry
    }
 
-  /**
-   * Sets whether this golem is angry or not.
-   */
+   /**
+    * Sets whether this golem is angry or not.
+    */
    public void setAngry(boolean p_70916_1_)
    {
        byte b0 = this.dataWatcher.getWatchableObjectByte(24); //datawatcher index 24 represents angry
@@ -487,11 +525,7 @@ public class EntitySentinel extends EntityTameable
         this.dataWatcher.updateObject(23, modeCode);   
     }
     
-   protected void clearAITasks()
-   {
-      tasks.taskEntries.clear();
-      targetTasks.taskEntries.clear();
-   }
+
 
    /**
     * Sets the active target the Task system uses for tracking
@@ -509,9 +543,19 @@ public class EntitySentinel extends EntityTameable
            this.setAngry(true);
        }
    }
-   /*
-    * the ai that the golem starts with, acts like a normal golem without the village loyalty stuff
+  
+   /**
+    * clears all the tasks that has been applied to the entity, allows for new AI to be applied to the entity without conflicts.
     */
+   protected void clearAITasks()
+   		{
+	   	tasks.taskEntries.clear();
+	   	targetTasks.taskEntries.clear();
+   		}  
+   
+   /**
+    * the ai that the golem starts with, acts like a normal golem without the village loyalty stuff
+    */   
    public void startAI(){
 	   this.setAIMode((byte)2);
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks
@@ -525,7 +569,8 @@ public class EntitySentinel extends EntityTameable
        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityLiving.class, 0, false, true, IMob.mobSelector));
        this.setTamed(false); 
    }
-   /*
+   
+   /**
     *  the ai that gets activated once tamed, gets rid of attacking the nearest mob when sitting.
     */
    public void neutralAI(){
@@ -550,8 +595,7 @@ public class EntitySentinel extends EntityTameable
    public void standGroundAI()
    		{
 	   this.setAIMode((byte)2);
-	   owner.addChatMessage(new ChatComponentTranslation("AI now set to StandGround"));
-	   
+	   owner.addChatMessage(new ChatComponentTranslation("AI now set to StandGround"));   
 	   clearAITasks(); // clear any tasks assigned in super classes, or currently running AITasks
        this.aiSit.setSitting(true);
 	   this.tasks.addTask(1, new EntityAIAttackFromStanding(this, true));
@@ -614,6 +658,4 @@ public class EntitySentinel extends EntityTameable
 				this.guardYPos == this.posX && 
 				this.guardZPos == this.posZ);
 	   	}
-
-   
-}	
+	}
