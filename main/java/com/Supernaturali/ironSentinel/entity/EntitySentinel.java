@@ -66,18 +66,22 @@ public class EntitySentinel extends EntityTameable
         super(p_i1694_1_);
         this.setSize(1.4F, 2.9F);
         this.getNavigator().setAvoidsWater(true);
-        switch ((int)getAIMode()){
-        case 0: startAI();
-        		break;
-		case 1: neutralAI();
-		        break;
-		case 2: standGroundAI();
-		        break;
-		case 3: defensiveAI();
-		        break;
-		case 4: noAttackAI();
-				break;
-        }
+        /*
+         * this switch is meant to automatically switch the sentinel to the ai mode it was
+         * last set to. Currently commented out until the datawatcher problem is fixed (similar cause i believe)
+         */
+//        switch ((int)getAIMode()){
+//        case 0: startAI();
+//        		break;
+//		case 1: neutralAI();
+//		        break;
+//		case 2: standGroundAI();
+//		        break;
+//		case 3: defensiveAI();
+//		        break;
+//		case 4: noAttackAI();
+//				break;
+//        }
     }
     
     /**
@@ -85,10 +89,11 @@ public class EntitySentinel extends EntityTameable
      */    
     protected void entityInit()
     {
+       System.out.println("entityInit");
        super.entityInit();
-       this.dataWatcher.addObject(24, Byte.valueOf((byte)0)); //AI mode
-       this.dataWatcher.addObject(23, Byte.valueOf((byte)0)); //Angry 
-       
+       this.dataWatcher.addObject(25, String.valueOf("")); //Angry
+       this.dataWatcher.addObject(24, Byte.valueOf((byte)0)); //Angry
+       this.dataWatcher.addObject(23, Byte.valueOf((byte)0)); //AI mode       
     }
 
     /**
@@ -104,6 +109,19 @@ public class EntitySentinel extends EntityTameable
      */
     protected void updateAITick()
     {
+//    	System.out.println("updateAITick");
+//    	switch ((int)getAIMode()){
+//        case 0: startAI();
+//        		break;
+//   		case 1: neutralAI();
+//   		        break;
+//   		case 2: standGroundAI();
+//   		        break;
+//   		case 3: defensiveAI();
+//   		        break;
+//   		case 4: noAttackAI();
+//   				break;
+//        }
         if (--this.homeCheckTimer <= 0)
         {
             this.homeCheckTimer = 70 + this.rand.nextInt(50);
@@ -125,6 +143,7 @@ public class EntitySentinel extends EntityTameable
 
     protected void applyEntityAttributes()
     {
+    	System.out.println("applyEntityAttributes");
         super.applyEntityAttributes();
         this.getEntityAttribute(SharedMonsterAttributes.maxHealth).setBaseValue(100.0D);
         this.getEntityAttribute(SharedMonsterAttributes.movementSpeed).setBaseValue(0.25D);       
@@ -194,10 +213,12 @@ public class EntitySentinel extends EntityTameable
      */
     public void writeEntityToNBT(NBTTagCompound p_70014_1_)
     {
+    	System.out.println("writeEntityToNBT");
         super.writeEntityToNBT(p_70014_1_);
         //p_70014_1_.setBoolean("PlayerCreated", this.isPlayerCreated());//not needed anymore
         p_70014_1_.setBoolean("Angry", this.isAngry());
         p_70014_1_.setInteger("AIMode", this.getAIMode());
+        p_70014_1_.setString("OwnerName", this.getOwnerName());
     }
 
     /**
@@ -206,10 +227,12 @@ public class EntitySentinel extends EntityTameable
      */
     public void readEntityFromNBT(NBTTagCompound p_70037_1_)
     {
+    	System.out.println("readEntityFromNBT");
         super.readEntityFromNBT(p_70037_1_);
         //this.setPlayerCreated(p_70037_1_.getBoolean("PlayerCreated"));
         this.setAngry(p_70037_1_.getBoolean("Angry"));
         this.setAIMode(p_70037_1_.getByte("AIMode"));
+        this.setOwnerName(p_70037_1_.getString("ownerName"));
 
     }
 
@@ -319,11 +342,12 @@ public class EntitySentinel extends EntityTameable
     }
 
 	@Override
-	public EntityAgeable createChild(EntityAgeable p_90011_1_) {
+	public EntityAgeable createChild(EntityAgeable p_90011_1_)
+		{
 		return null;
-	}
+		}
 
-	//ADDED CODE
+	//TODO ADDED CODE
 	
 	// Called when the entity is attacked.
     public boolean attackEntityFrom(DamageSource p_70097_1_, float p_70097_2_)
@@ -369,6 +393,7 @@ public class EntitySentinel extends EntityTameable
    */
    public boolean interact(EntityPlayer player)
    {
+	   System.out.println("interact");
        ItemStack itemstack = player.inventory.getCurrentItem();
      
        
@@ -379,7 +404,7 @@ public class EntitySentinel extends EntityTameable
                if (itemstack.getItem() instanceof ItemFood)
                {
                    ItemFood itemfood = (ItemFood)itemstack.getItem();
-                   //TODO change item that increases health.
+
                    if (itemfood.isWolfsFavoriteMeat() && this.dataWatcher.getWatchableObjectFloat(18) < 20.0F) //datawatcher index 18 = health 
                    {
                        if (!player.capabilities.isCreativeMode)
@@ -398,10 +423,17 @@ public class EntitySentinel extends EntityTameable
                    }
                }
                else if (this.func_152114_e(player) && player.isSneaking()){
+            	   player.addChatMessage(new ChatComponentTranslation("My Master is " + this.owner));
+            	   //player.addChatMessage(new ChatComponentTranslation("My Master is " + this.getOwnerName().toString()));
             	   GuiSentinel.getInstance(this);
             	   player.openGui(IronSentinel.instance, 20, this.worldObj, 0, 0, 0);
                }
           }
+          if (!this.func_152114_e(player))
+          {
+        	  System.out.println("NAME!!!!!!!!!!!!!! " + this.getOwnerName().toString());
+        	  player.addChatMessage(new ChatComponentTranslation("You are not my Master. My Master is " + this.getOwnerName().toString()));
+          }	
       }
 
            if (this.func_152114_e(player) && !this.worldObj.isRemote)//this.func_152114_e(p_70085_1_) checks if it the owner
@@ -414,7 +446,7 @@ public class EntitySentinel extends EntityTameable
                this.setAttackTarget((EntityLivingBase)null);
            }
        
-       else if (itemstack != null && itemstack.getItem() == Items.gold_ingot && !this.isAngry() )//&& this.isTamed()==false)
+       else if (itemstack != null && itemstack.getItem() == Items.gold_ingot && !this.isAngry() && this.isTamed()==false)
        {
            if (!player.capabilities.isCreativeMode)
            {
@@ -430,7 +462,9 @@ public class EntitySentinel extends EntityTameable
            {
                if (this.rand.nextInt(3) == 0)
                {
-            	   this.owner = player;
+            	   owner = player;
+            	   System.out.println("display name" + player.getDisplayName().toString());
+            	   this.setOwnerName(player.getDisplayName().toString());
             	   neutralAI();
                    this.setTamed(true);
                    this.setPathToEntity((PathEntity)null);
@@ -457,6 +491,7 @@ public class EntitySentinel extends EntityTameable
    //Determines whether this wolf is angry or not.
    public boolean isAngry()
    {
+//	   System.out.println("isAngry");
        return (this.dataWatcher.getWatchableObjectByte(24) & 2) != 0;//datawatcher index 24 represents angry
    }
 
@@ -465,6 +500,7 @@ public class EntitySentinel extends EntityTameable
    */
    public void setAngry(boolean p_70916_1_)
    {
+	   System.out.println("setAngry");
        byte b0 = this.dataWatcher.getWatchableObjectByte(24); //datawatcher index 24 represents angry
 
       if (p_70916_1_)
@@ -479,13 +515,29 @@ public class EntitySentinel extends EntityTameable
  
    public byte getAIMode() //retrieves AI Mode number from server (hopefully)
     {
+	   System.out.println("getAIMode");
+	   System.out.println("AI = " + this.dataWatcher.getWatchableObjectByte(23));
         return this.dataWatcher.getWatchableObjectByte(23);
     }
 
    public void setAIMode(byte modeCode) //sets AI mode number to server (hopefully)
     {
+	   System.out.println("setAIMode");
+	   System.out.println("AI = " + modeCode);
         this.dataWatcher.updateObject(23, modeCode);   
     }
+   
+   public String getOwnerName() //retrieves owner name from server (hopefully)
+   {
+	   System.out.println("getOwnerName");
+       return this.dataWatcher.getWatchableObjectString(25);
+   }
+   
+   public void setOwnerName(String ownerName) //sets owner's name to server (hopefully)
+   {
+	   System.out.println("setOwnerName");
+       this.dataWatcher.updateObject(25, ownerName);   
+   }
     
    protected void clearAITasks()
    {
